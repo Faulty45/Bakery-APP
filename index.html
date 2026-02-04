@@ -5,42 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="manifest" href="manifest.json">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f6e8d7;
-    }
-    header {
-      background: #8b5a2b;
-      color: white;
-      padding: 16px;
-      font-size: 20px;
-    }
-    .container {
-      padding: 16px;
-    }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 12px;
-    }
-    button {
-      width: 100%;
-      padding: 14px;
-      font-size: 16px;
-      background: #8b5a2b;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      margin-top: 8px;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 6px;
-      font-size: 16px;
-    }
+    body { font-family: Arial; margin:0; background:#f6e8d7; }
+    header { background:#8b5a2b; color:#fff; padding:16px; font-size:20px; }
+    .container { padding:16px; }
+    .card { background:#fff; padding:16px; border-radius:8px; margin-bottom:12px; }
+    input, button { width:100%; padding:12px; font-size:16px; margin-top:8px; }
+    button { background:#8b5a2b; color:#fff; border:none; border-radius:6px; }
+    ul { padding-left:18px; }
   </style>
 </head>
 <body>
@@ -51,24 +22,65 @@
 
   <div class="card">
     <h3>Produce Item</h3>
-    <input placeholder="Item name">
-    <input placeholder="Quantity produced" type="number">
-    <button>Add to Inventory</button>
+    <input id="produceName" placeholder="Item name">
+    <input id="produceQty" type="number" placeholder="Quantity produced">
+    <button onclick="produce()">Add to Inventory</button>
   </div>
 
   <div class="card">
     <h3>Sell Item</h3>
-    <input placeholder="Item name">
-    <input placeholder="Quantity sold" type="number">
-    <button>Record Sale</button>
+    <input id="sellName" placeholder="Item name">
+    <input id="sellQty" type="number" placeholder="Quantity sold">
+    <button onclick="sell()">Record Sale</button>
   </div>
 
   <div class="card">
-    <h3>Daily Summary</h3>
-    <p>Inventory, sales, and money totals will appear here.</p>
+    <h3>Current Inventory</h3>
+    <ul id="inventoryList"></ul>
   </div>
 
 </div>
+
+<script>
+let inventory = JSON.parse(localStorage.getItem("inventory")) || {};
+
+function save() {
+  localStorage.setItem("inventory", JSON.stringify(inventory));
+  render();
+}
+
+function produce() {
+  const name = produceName.value.trim();
+  const qty = Number(produceQty.value);
+  if (!name || qty <= 0) return alert("Enter valid values");
+
+  inventory[name] = (inventory[name] || 0) + qty;
+  save();
+  produceName.value = "";
+  produceQty.value = "";
+}
+
+function sell() {
+  const name = sellName.value.trim();
+  const qty = Number(sellQty.value);
+  if (!inventory[name] || qty <= 0) return alert("Invalid sale");
+
+  inventory[name] -= qty;
+  if (inventory[name] <= 0) delete inventory[name];
+  save();
+  sellName.value = "";
+  sellQty.value = "";
+}
+
+function render() {
+  inventoryList.innerHTML = "";
+  for (let item in inventory) {
+    inventoryList.innerHTML += `<li>${item}: ${inventory[item]}</li>`;
+  }
+}
+
+render();
+</script>
 
 </body>
 </html>
