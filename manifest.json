@@ -1,0 +1,8 @@
+{
+  "name": "Bakery Manager",
+  "short_name": "Bakery",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6E8D7",
+  "theme_color": "#8B5A2B"
+}
