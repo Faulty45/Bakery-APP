@@ -9,7 +9,7 @@
     header { background:#8b5a2b; color:#fff; padding:16px; font-size:20px; }
     .container { padding:16px; }
     .card { background:#fff; padding:16px; border-radius:8px; margin-bottom:12px; }
-    input, button { width:100%; padding:12px; font-size:16px; margin-top:8px; }
+    select, input, button { width:100%; padding:12px; font-size:16px; margin-top:8px; }
     button { background:#8b5a2b; color:#fff; border:none; border-radius:6px; }
     ul { padding-left:18px; }
   </style>
@@ -22,14 +22,14 @@
 
   <div class="card">
     <h3>Produce Item</h3>
-    <input id="produceName" placeholder="Item name">
+    <select id="produceItem"></select>
     <input id="produceQty" type="number" placeholder="Quantity produced">
     <button onclick="produce()">Add to Inventory</button>
   </div>
 
   <div class="card">
     <h3>Sell Item</h3>
-    <input id="sellName" placeholder="Item name">
+    <select id="sellItem"></select>
     <input id="sellQty" type="number" placeholder="Quantity sold">
     <button onclick="sell()">Record Sale</button>
   </div>
@@ -42,7 +42,23 @@
 </div>
 
 <script>
+// 👇 EDIT YOUR ITEM LIST HERE
+const items = [
+  "Bread",
+  "Croissant",
+  "Muffin",
+  "Cake"
+];
+
 let inventory = JSON.parse(localStorage.getItem("inventory")) || {};
+
+function loadItems() {
+  produceItem.innerHTML = sellItem.innerHTML = "";
+  items.forEach(item => {
+    produceItem.innerHTML += `<option value="${item}">${item}</option>`;
+    sellItem.innerHTML += `<option value="${item}">${item}</option>`;
+  });
+}
 
 function save() {
   localStorage.setItem("inventory", JSON.stringify(inventory));
@@ -50,25 +66,23 @@ function save() {
 }
 
 function produce() {
-  const name = produceName.value.trim();
+  const name = produceItem.value;
   const qty = Number(produceQty.value);
-  if (!name || qty <= 0) return alert("Enter valid values");
+  if (qty <= 0) return alert("Enter a valid quantity");
 
   inventory[name] = (inventory[name] || 0) + qty;
   save();
-  produceName.value = "";
   produceQty.value = "";
 }
 
 function sell() {
-  const name = sellName.value.trim();
+  const name = sellItem.value;
   const qty = Number(sellQty.value);
   if (!inventory[name] || qty <= 0) return alert("Invalid sale");
 
   inventory[name] -= qty;
   if (inventory[name] <= 0) delete inventory[name];
   save();
-  sellName.value = "";
   sellQty.value = "";
 }
 
@@ -79,6 +93,7 @@ function render() {
   }
 }
 
+loadItems();
 render();
 </script>
 
