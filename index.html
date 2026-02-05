@@ -3,15 +3,19 @@
 <head>
   <title>Bakery Manager</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="manifest" href="manifest.json">
   <style>
     body { font-family: Arial; margin:0; background:#f6e8d7; }
     header { background:#8b5a2b; color:#fff; padding:16px; font-size:20px; }
     .container { padding:16px; }
     .card { background:#fff; padding:16px; border-radius:8px; margin-bottom:12px; }
-    select, input, button { width:100%; padding:12px; font-size:16px; margin-top:8px; }
+    input, select, button {
+      width:100%; padding:12px; font-size:16px; margin-top:8px;
+    }
     button { background:#8b5a2b; color:#fff; border:none; border-radius:6px; }
-    ul { padding-left:18px; }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+    .hidden { display:none; }
+    .manager { background:#f0d9b5; }
   </style>
 </head>
 <body>
@@ -20,81 +24,170 @@
 
 <div class="container">
 
-  <div class="card">
-    <h3>Produce Item</h3>
-    <select id="produceItem"></select>
-    <input id="produceQty" type="number" placeholder="Quantity produced">
-    <button onclick="produce()">Add to Inventory</button>
+<!-- LOGIN -->
+<div id="loginCard" class="card">
+  <h3>Login</h3>
+  <input id="pinInput" type="password" placeholder="Enter PIN">
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+  <!-- MANAGER SETTINGS -->
+  <div id="managerPanel" class="card manager hidden">
+    <h3>Manager Settings</h3>
+
+    <h4>Add Employee</h4>
+    <input id="empName" placeholder="Employee name">
+    <input id="empPin" placeholder="4-digit PIN">
+    <button onclick="addEmployee()">Add Employee</button>
+
+    <h4>Add Item</h4>
+    <input id="itemName" placeholder="Item name">
+    <input id="itemPrice" type="number" step="0.01" placeholder="Price">
+    <button onclick="addItem()">Save Item</button>
+
+    <h4>Reports</h4>
+    <select id="reportType">
+      <option value="day">Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+    <button onclick="generateReport()">Generate Report</button>
+    <button onclick="window.print()">Print Report</button>
   </div>
 
+  <!-- SALES -->
   <div class="card">
     <h3>Sell Item</h3>
     <select id="sellItem"></select>
-    <input id="sellQty" type="number" placeholder="Quantity sold">
+    <input id="sellQty" type="number" placeholder="Quantity">
     <button onclick="sell()">Record Sale</button>
   </div>
 
-  <div class="card">
-    <h3>Current Inventory</h3>
-    <ul id="inventoryList"></ul>
+  <!-- REPORT OUTPUT -->
+  <div id="reportCard" class="card hidden">
+    <h3>Sales Report</h3>
+    <table id="reportTable"></table>
   </div>
+
+  <button onclick="logout()">Logout</button>
+</div>
 
 </div>
 
 <script>
-// 👇 EDIT YOUR ITEM LIST HERE
-const items = [
-  "Bread",
-  "Croissant",
-  "Muffin",
-  "Cake"
-];
+const MANAGER_PIN = "9999";
 
-let inventory = JSON.parse(localStorage.getItem("inventory")) || {};
-
-function loadItems() {
-  produceItem.innerHTML = sellItem.innerHTML = "";
-  items.forEach(item => {
-    produceItem.innerHTML += `<option value="${item}">${item}</option>`;
-    sellItem.innerHTML += `<option value="${item}">${item}</option>`;
-  });
-}
+let employees = JSON.parse(localStorage.getItem("employees")) || {};
+let items = JSON.parse(localStorage.getItem("items")) || {};
+let sales = JSON.parse(localStorage.getItem("sales")) || [];
+let currentUser = null;
+let isManager = false;
 
 function save() {
-  localStorage.setItem("inventory", JSON.stringify(inventory));
-  render();
+  localStorage.setItem("employees", JSON.stringify(employees));
+  localStorage.setItem("items", JSON.stringify(items));
+  localStorage.setItem("sales", JSON.stringify(sales));
 }
 
-function produce() {
-  const name = produceItem.value;
-  const qty = Number(produceQty.value);
-  if (qty <= 0) return alert("Enter a valid quantity");
+function login() {
+  const pin = pinInput.value;
+  if (pin === MANAGER_PIN) {
+    isManager = true;
+    currentUser = "Manager";
+  } else if (employees[pin]) {
+    isManager = false;
+    currentUser = employees[pin];
+  } else {
+    return alert("Invalid PIN");
+  }
 
-  inventory[name] = (inventory[name] || 0) + qty;
+  loginCard.classList.add("hidden");
+  app.classList.remove("hidden");
+  if (isManager) managerPanel.classList.remove("hidden");
+  loadItems();
+}
+
+function logout() {
+  currentUser = null;
+  isManager = false;
+  app.classList.add("hidden");
+  managerPanel.classList.add("hidden");
+  loginCard.classList.remove("hidden");
+}
+
+function addEmployee() {
+  if (empPin.value.length !== 4) return alert("PIN must be 4 digits");
+  employees[empPin.value] = empName.value;
   save();
-  produceQty.value = "";
+  empName.value = empPin.value = "";
+}
+
+function addItem() {
+  items[itemName.value] = Number(itemPrice.value);
+  save();
+  loadItems();
+  itemName.value = itemPrice.value = "";
+}
+
+function loadItems() {
+  sellItem.innerHTML = "";
+  for (let item in items) {
+    sellItem.innerHTML += `<option>${item}</option>`;
+  }
 }
 
 function sell() {
-  const name = sellItem.value;
   const qty = Number(sellQty.value);
-  if (!inventory[name] || qty <= 0) return alert("Invalid sale");
+  const item = sellItem.value;
+  const amount = qty * items[item];
+  if (!qty || !item) return;
 
-  inventory[name] -= qty;
-  if (inventory[name] <= 0) delete inventory[name];
+  sales.push({
+    date: new Date().toISOString(),
+    item,
+    qty,
+    amount,
+    employee: currentUser
+  });
+
   save();
   sellQty.value = "";
 }
 
-function render() {
-  inventoryList.innerHTML = "";
-  for (let item in inventory) {
-    inventoryList.innerHTML += `<li>${item}: ${inventory[item]}</li>`;
-  }
-}
+function generateReport() {
+  const type = reportType.value;
+  const now = new Date();
+  let filtered = sales.filter(s => {
+    const d = new Date(s.date);
+    if (type === "day") return d.toDateString() === now.toDateString();
+    if (type === "week") return d > new Date(now - 7*86400000);
+    if (type === "month") return d.getMonth() === now.getMonth();
+  });
 
-loadItems();
-render();
+  let total = 0;
+  reportTable.innerHTML =
+    "<tr><th>Date</th><th>Item</th><th>Qty</th><th>Employee</th><th>Amount</th></tr>";
+
+  filtered.forEach(s => {
+    total += s.amount;
+    reportTable.innerHTML +=
+      `<tr>
+        <td>${new Date(s.date).toLocaleString()}</td>
+        <td>${s.item}</td>
+        <td>${s.qty}</td>
+        <td>${s.employee}</td>
+        <td>$${s.amount.toFixed(2)}</td>
+      </tr>`;
+  });
+
+  reportTable.innerHTML +=
+    `<tr><td colspan="4"><strong>Total</strong></td><td><strong>$${total.toFixed(2)}</strong></td></tr>`;
+
+  reportCard.classList.remove("hidden");
+}
 </script>
 
 </body>
