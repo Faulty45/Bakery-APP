@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Bakery POS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body {
   font-family: "Segoe UI", sans-serif;
@@ -10,47 +11,45 @@ body {
   padding: 20px;
   color: #4b2e1e;
 }
-
 h2, h3, h4 { color: #8b4513; }
-
 .card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 15px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
 }
-
 button {
   background: #d2691e;
   color: white;
   border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
   cursor: pointer;
 }
-
 button:hover { background: #b45309; }
-
 input, select {
-  padding: 6px;
-  margin: 5px 0;
-  border-radius: 6px;
+  padding: 8px;
+  margin: 6px 0;
+  border-radius: 8px;
   border: 1px solid #ccc;
   width: 100%;
 }
-
 .hidden { display: none; }
-
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
 }
-
 th, td {
   border-bottom: 1px solid #eee;
   padding: 8px;
+}
+.notice {
+  background: #fde68a;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 15px;
 }
 </style>
 </head>
@@ -58,6 +57,12 @@ th, td {
 <body>
 
 <h2>🍞 Bakery POS</h2>
+
+<div class="card notice" id="firstRunNotice">
+  <b>First Login</b><br>
+  Default Manager PIN: <b>0000</b><br>
+  Please change it after logging in.
+</div>
 
 <div id="loginScreen" class="card">
   <input id="pinInput" type="password" placeholder="Enter PIN">
@@ -94,12 +99,12 @@ th, td {
 <table id="itemTable"></table>
 
 <h4>Employee Management</h4>
-<input id="empName" placeholder="Employee Name">
+<input id="empName" placeholder="Employee name">
 <input id="empPin" placeholder="4-digit PIN">
 <button onclick="addEmployee()">Add Employee</button>
 
 <h4>Add Manager</h4>
-<input id="mgrPin" placeholder="4-digit Manager PIN">
+<input id="mgrPin" placeholder="4-digit PIN">
 <button onclick="addManager()">Add Manager</button>
 
 <table id="employeeTable"></table>
@@ -112,7 +117,9 @@ th, td {
 </div>
 
 <script>
-let managers = JSON.parse(localStorage.getItem("managers")) || ["0000"];
+let managers = JSON.parse(localStorage.getItem("managers"));
+if (!managers || managers.length === 0) managers = ["0000"];
+
 let employees = JSON.parse(localStorage.getItem("employees")) || {};
 let items = JSON.parse(localStorage.getItem("items")) || {};
 let activityLog = JSON.parse(localStorage.getItem("activityLog")) || [];
@@ -148,6 +155,7 @@ function login() {
     return alert("Invalid PIN");
   }
 
+  failedAttempts[pin] = 0;
   currentUser = employees[pin];
   isManager = false;
   openApp();
@@ -165,6 +173,7 @@ function openApp() {
   renderItems();
   renderEmployees();
   logAction("Logged in");
+  firstRunNotice.remove();
 }
 
 function logout() {
@@ -191,6 +200,7 @@ function renderItems() {
 }
 
 function addOrUpdateItem() {
+  if (!itemName.value || !itemPrice.value) return;
   items[itemName.value] = Number(itemPrice.value);
   save();
   renderItems();
@@ -209,6 +219,7 @@ function sellItem() {
 }
 
 function addProduced() {
+  if (!prodName.value) return;
   if (!items[prodName.value]) items[prodName.value] = 0;
   save();
   renderItems();
@@ -217,15 +228,17 @@ function addProduced() {
 }
 
 function addEmployee() {
+  if (empPin.value.length !== 4) return alert("PIN must be 4 digits");
   employees[empPin.value] = empName.value;
   save();
   renderEmployees();
   logAction("Added employee " + empName.value);
+  empName.value = empPin.value = "";
 }
 
 function addManager() {
-  if (!managers.includes(mgrPin.value))
-    managers.push(mgrPin.value);
+  if (mgrPin.value.length !== 4) return alert("PIN must be 4 digits");
+  if (!managers.includes(mgrPin.value)) managers.push(mgrPin.value);
   save();
   alert("Manager added");
   mgrPin.value = "";
@@ -236,4 +249,30 @@ function renderEmployees() {
     "<tr><th>Name</th><th>PIN</th><th>Role</th></tr>";
 
   for (let pin in employees)
-    employeeTable.innerHTML += `<tr><td>${e
+    employeeTable.innerHTML +=
+      `<tr><td>${employees[pin]}</td><td>${pin}</td><td>Employee</td></tr>`;
+
+  managers.forEach(p =>
+    employeeTable.innerHTML +=
+      `<tr><td>Manager</td><td>${p}</td><td>Manager</td></tr>`);
+}
+
+function logAction(action) {
+  activityLog.push({
+    user: currentUser,
+    action,
+    time: new Date().toLocaleString()
+  });
+  save();
+}
+
+function viewLogs() {
+  logOutput.innerHTML = activityLog
+    .slice(-50)
+    .map(l => `<p>[${l.time}] ${l.user}: ${l.action}</p>`)
+    .join("");
+}
+</script>
+
+</body>
+</html>
