@@ -7,49 +7,45 @@
 body {
   font-family: "Segoe UI", sans-serif;
   background: #fff7ed;
-  margin: 0;
   padding: 20px;
   color: #4b2e1e;
 }
-h2, h3, h4 { color: #8b4513; }
+h2,h3,h4 { color:#8b4513; }
 .card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 20px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+  background:#fff;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:20px;
+  box-shadow:0 6px 15px rgba(0,0,0,.1);
 }
 button {
-  background: #d2691e;
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
-  cursor: pointer;
+  background:#d2691e;
+  color:#fff;
+  border:none;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
 }
-button:hover { background: #b45309; }
-input, select {
-  padding: 8px;
-  margin: 6px 0;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  width: 100%;
+button:hover { background:#b45309; }
+input,select {
+  padding:8px;
+  margin:6px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+  width:100%;
 }
-.hidden { display: none; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
+.hidden{display:none;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:8px;border-bottom:1px solid #eee;}
+.roleBtn{width:100%;margin-top:8px;}
+.notice{
+  background:#fde68a;
+  padding:10px;
+  border-radius:10px;
+  margin-bottom:15px;
 }
-th, td {
-  border-bottom: 1px solid #eee;
-  padding: 8px;
-}
-.notice {
-  background: #fde68a;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 15px;
+@media print {
+  button,input,select { display:none; }
 }
 </style>
 </head>
@@ -58,219 +54,208 @@ th, td {
 
 <h2>🍞 Bakery POS</h2>
 
-<div class="card notice" id="firstRunNotice">
-  <b>First Login</b><br>
-  Default Manager PIN: <b>0000</b><br>
-  Please change it after logging in.
+<div class="card notice">
+<b>First Login</b><br>
+Manager PIN: <b>0000</b><br>
+Manager Name: <b>Owner</b>
 </div>
 
 <div id="loginScreen" class="card">
   <input id="pinInput" type="password" placeholder="Enter PIN">
-  <button onclick="login()">Login</button>
+  <button class="roleBtn" onclick="login('sales')">Employee Sales Login</button>
+  <button class="roleBtn" onclick="login('production')">Employee Production Login</button>
+  <button class="roleBtn" onclick="login('manager')">Manager Login</button>
 </div>
 
 <div id="app" class="hidden">
-
 <h3 id="welcome"></h3>
 <button onclick="logout()">Logout</button>
 
-<!-- EMPLOYEE PANEL -->
-<div id="employeePanel" class="card hidden">
-  <h4>Sell Items</h4>
-  <select id="itemSelect"></select>
-  <button onclick="sellItem()">Sell</button>
-
-  <h4>Add Produced Item</h4>
-  <input id="prodName" placeholder="Item name">
-  <input id="prodQty" type="number" placeholder="Quantity">
-  <button onclick="addProduced()">Add Production</button>
+<!-- SALES -->
+<div id="salesPanel" class="card hidden">
+<h4>Sell Items</h4>
+<select id="sellItemSelect"></select>
+<button onclick="sellItem()">Sell</button>
 </div>
 
-<!-- MANAGER PANEL -->
+<!-- PRODUCTION -->
+<div id="productionPanel" class="card hidden">
+<h4>Add Produced Items</h4>
+<select id="prodItemSelect"></select>
+<input id="prodQty" type="number" placeholder="Quantity">
+<button onclick="addProduction()">Add Production</button>
+</div>
+
+<!-- MANAGER -->
 <div id="managerPanel" class="card hidden">
 
 <h3>Manager Dashboard</h3>
 
-<h4>Manage Items & Prices</h4>
+<h4>Items, Prices & Inventory</h4>
 <input id="itemName" placeholder="Item name">
 <input id="itemPrice" type="number" placeholder="Price">
+<input id="itemStock" type="number" placeholder="Starting inventory">
 <button onclick="addOrUpdateItem()">Save Item</button>
 
 <table id="itemTable"></table>
 
-<h4>Employee Management</h4>
+<h4>Employees</h4>
 <input id="empName" placeholder="Employee name">
 <input id="empPin" placeholder="4-digit PIN">
 <button onclick="addEmployee()">Add Employee</button>
 
-<h4>Add Manager</h4>
+<h4>Managers</h4>
+<input id="mgrName" placeholder="Manager name">
 <input id="mgrPin" placeholder="4-digit PIN">
 <button onclick="addManager()">Add Manager</button>
 
-<table id="employeeTable"></table>
+<table id="userTable"></table>
 
-<h4>Activity Logs</h4>
-<button onclick="viewLogs()">View Logs</button>
+<h4>Reports</h4>
+<button onclick="printReport('day')">Daily Report</button>
+<button onclick="printReport('week')">Weekly Report</button>
+<button onclick="printReport('month')">Monthly Report</button>
+
+<h4>Activity Log</h4>
 <div id="logOutput"></div>
 
 </div>
 </div>
 
 <script>
+// ---------- DATA ----------
 let managers = JSON.parse(localStorage.getItem("managers"));
-if (!managers || managers.length === 0) managers = ["0000"];
+if (!managers || managers.length===0)
+  managers=[{name:"Owner",pin:"0000"}];
 
 let employees = JSON.parse(localStorage.getItem("employees")) || {};
 let items = JSON.parse(localStorage.getItem("items")) || {};
 let activityLog = JSON.parse(localStorage.getItem("activityLog")) || [];
-let failedAttempts = JSON.parse(localStorage.getItem("failedAttempts")) || {};
 
-let currentUser = "";
-let isManager = false;
+let currentUser="", currentRole="";
 
-function save() {
-  localStorage.setItem("managers", JSON.stringify(managers));
-  localStorage.setItem("employees", JSON.stringify(employees));
-  localStorage.setItem("items", JSON.stringify(items));
-  localStorage.setItem("activityLog", JSON.stringify(activityLog));
-  localStorage.setItem("failedAttempts", JSON.stringify(failedAttempts));
+// ---------- SAVE ----------
+function save(){
+  localStorage.setItem("managers",JSON.stringify(managers));
+  localStorage.setItem("employees",JSON.stringify(employees));
+  localStorage.setItem("items",JSON.stringify(items));
+  localStorage.setItem("activityLog",JSON.stringify(activityLog));
 }
 
-function login() {
-  const pin = pinInput.value;
-
-  if (failedAttempts[pin] >= 3)
-    return alert("Account locked");
-
-  if (managers.includes(pin)) {
-    currentUser = "Manager";
-    isManager = true;
-    openApp();
-    return;
+// ---------- LOGIN ----------
+function login(role){
+  const pin=pinInput.value;
+  const manager=managers.find(m=>m.pin===pin);
+  if(role==="manager" && manager){
+    currentUser=manager.name;
+    currentRole="manager";
+    openApp(); return;
   }
-
-  if (!employees[pin]) {
-    failedAttempts[pin] = (failedAttempts[pin] || 0) + 1;
-    save();
-    return alert("Invalid PIN");
-  }
-
-  failedAttempts[pin] = 0;
-  currentUser = employees[pin];
-  isManager = false;
+  if(!employees[pin]) return alert("Invalid PIN");
+  currentUser=employees[pin];
+  currentRole=role;
   openApp();
 }
 
-function openApp() {
-  pinInput.value = "";
+// ---------- OPEN ----------
+function openApp(){
   loginScreen.classList.add("hidden");
   app.classList.remove("hidden");
-  welcome.innerText = "Welcome " + currentUser;
+  welcome.innerText=`Welcome ${currentUser} (${currentRole})`;
 
-  employeePanel.classList.toggle("hidden", isManager);
-  managerPanel.classList.toggle("hidden", !isManager);
+  salesPanel.classList.toggle("hidden",currentRole!=="sales");
+  productionPanel.classList.toggle("hidden",currentRole!=="production");
+  managerPanel.classList.toggle("hidden",currentRole!=="manager");
 
-  renderItems();
-  renderEmployees();
+  renderItems(); renderUsers();
   logAction("Logged in");
-  firstRunNotice.remove();
 }
 
-function logout() {
-  logAction("Logged out");
-  location.reload();
-}
+// ---------- LOGOUT ----------
+function logout(){ location.reload(); }
 
-function renderItems() {
-  itemSelect.innerHTML = "";
-  itemTable.innerHTML = "<tr><th>Item</th><th>Price</th></tr>";
+// ---------- ITEMS ----------
+function renderItems(){
+  sellItemSelect.innerHTML="";
+  prodItemSelect.innerHTML="";
+  itemTable.innerHTML="<tr><th>Item</th><th>Price</th><th>Stock</th></tr>";
 
-  for (let name in items) {
-    itemSelect.innerHTML += `<option>${name}</option>`;
-    itemTable.innerHTML += `
-      <tr>
-        <td>${name}</td>
-        <td>
-          ${isManager
-            ? `<input value="${items[name]}" onchange="updatePrice('${name}', this.value)">`
-            : "$" + items[name]}
-        </td>
-      </tr>`;
+  for(let i in items){
+    sellItemSelect.innerHTML+=`<option>${i}</option>`;
+    prodItemSelect.innerHTML+=`<option>${i}</option>`;
+    itemTable.innerHTML+=`
+    <tr>
+      <td>${i}</td>
+      <td><input value="${items[i].price}" onchange="items['${i}'].price=this.value;save()"></td>
+      <td>${items[i].stock}</td>
+    </tr>`;
   }
 }
 
-function addOrUpdateItem() {
-  if (!itemName.value || !itemPrice.value) return;
-  items[itemName.value] = Number(itemPrice.value);
+function addOrUpdateItem(){
+  items[itemName.value]={
+    price:Number(itemPrice.value),
+    stock:Number(itemStock.value||0)
+  };
+  save(); renderItems();
+  logAction("Updated item "+itemName.value);
+  itemName.value=itemPrice.value=itemStock.value="";
+}
+
+// ---------- SALES ----------
+function sellItem(){
+  const item=sellItemSelect.value;
+  if(items[item].stock<=0) return alert("Out of stock");
+  items[item].stock--;
+  save(); renderItems();
+  logAction("Sold "+item);
+}
+
+// ---------- PRODUCTION ----------
+function addProduction(){
+  const item=prodItemSelect.value;
+  items[item].stock+=Number(prodQty.value);
+  save(); renderItems();
+  logAction("Produced "+prodQty.value+" "+item);
+  prodQty.value="";
+}
+
+// ---------- USERS ----------
+function addEmployee(){
+  employees[empPin.value]=empName.value;
+  save(); renderUsers();
+}
+
+function addManager(){
+  managers.push({name:mgrName.value,pin:mgrPin.value});
+  save(); renderUsers();
+}
+
+function renderUsers(){
+  userTable.innerHTML="<tr><th>Name</th><th>PIN</th><th>Role</th></tr>";
+  for(let p in employees)
+    userTable.innerHTML+=`<tr><td>${employees[p]}</td><td>${p}</td><td>Employee</td></tr>`;
+  managers.forEach(m=>
+    userTable.innerHTML+=`<tr><td>${m.name}</td><td>${m.pin}</td><td>Manager</td></tr>`);
+}
+
+// ---------- LOGS ----------
+function logAction(action){
+  activityLog.push({user:currentUser,action,time:new Date()});
   save();
-  renderItems();
-  logAction("Updated item " + itemName.value);
-  itemName.value = itemPrice.value = "";
 }
 
-function updatePrice(name, price) {
-  items[name] = Number(price);
-  save();
-}
-
-function sellItem() {
-  logAction("Sold " + itemSelect.value);
-  alert("Sold " + itemSelect.value);
-}
-
-function addProduced() {
-  if (!prodName.value) return;
-  if (!items[prodName.value]) items[prodName.value] = 0;
-  save();
-  renderItems();
-  logAction("Produced " + prodQty.value + " " + prodName.value);
-  prodName.value = prodQty.value = "";
-}
-
-function addEmployee() {
-  if (empPin.value.length !== 4) return alert("PIN must be 4 digits");
-  employees[empPin.value] = empName.value;
-  save();
-  renderEmployees();
-  logAction("Added employee " + empName.value);
-  empName.value = empPin.value = "";
-}
-
-function addManager() {
-  if (mgrPin.value.length !== 4) return alert("PIN must be 4 digits");
-  if (!managers.includes(mgrPin.value)) managers.push(mgrPin.value);
-  save();
-  alert("Manager added");
-  mgrPin.value = "";
-}
-
-function renderEmployees() {
-  employeeTable.innerHTML =
-    "<tr><th>Name</th><th>PIN</th><th>Role</th></tr>";
-
-  for (let pin in employees)
-    employeeTable.innerHTML +=
-      `<tr><td>${employees[pin]}</td><td>${pin}</td><td>Employee</td></tr>`;
-
-  managers.forEach(p =>
-    employeeTable.innerHTML +=
-      `<tr><td>Manager</td><td>${p}</td><td>Manager</td></tr>`);
-}
-
-function logAction(action) {
-  activityLog.push({
-    user: currentUser,
-    action,
-    time: new Date().toLocaleString()
+function printReport(type){
+  const now=new Date();
+  const filtered=activityLog.filter(l=>{
+    const t=new Date(l.time);
+    if(type==="day") return t.toDateString()===now.toDateString();
+    if(type==="week") return now-t<7*86400000;
+    if(type==="month") return t.getMonth()===now.getMonth();
   });
-  save();
-}
-
-function viewLogs() {
-  logOutput.innerHTML = activityLog
-    .slice(-50)
-    .map(l => `<p>[${l.time}] ${l.user}: ${l.action}</p>`)
-    .join("");
+  logOutput.innerHTML=filtered.map(l=>
+    `<p>${new Date(l.time).toLocaleString()} — ${l.user}: ${l.action}</p>`).join("");
+  window.print();
 }
 </script>
 
