@@ -1,21 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bakery POS</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    .hidden { display: none; }
-    button { margin: 5px; }
-    table { border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 5px; }
-    input { margin: 5px; }
-  </style>
+<title>Bakery POS</title>
+<style>
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #fff7ed;
+  margin: 0;
+  padding: 20px;
+  color: #4b2e1e;
+}
+
+h2, h3, h4 { color: #8b4513; }
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+button {
+  background: #d2691e;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover { background: #b45309; }
+
+input, select {
+  padding: 6px;
+  margin: 5px 0;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+.hidden { display: none; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+th, td {
+  border-bottom: 1px solid #eee;
+  padding: 8px;
+}
+</style>
 </head>
+
 <body>
 
-<h2>Bakery POS Login</h2>
+<h2>🍞 Bakery POS</h2>
 
-<div id="loginScreen">
+<div id="loginScreen" class="card">
   <input id="pinInput" type="password" placeholder="Enter PIN">
   <button onclick="login()">Login</button>
 </div>
@@ -25,69 +69,76 @@
 <h3 id="welcome"></h3>
 <button onclick="logout()">Logout</button>
 
-<!-- EMPLOYEE VIEW -->
-<div id="employeePanel" class="hidden">
-  <h3>Sales</h3>
+<!-- EMPLOYEE PANEL -->
+<div id="employeePanel" class="card hidden">
+  <h4>Sell Items</h4>
+  <select id="itemSelect"></select>
+  <button onclick="sellItem()">Sell</button>
 
-  <select id="itemSelect">
-    <option value="Bread">Bread - $3</option>
-    <option value="Croissant">Croissant - $2</option>
-    <option value="Cake Slice">Cake Slice - $5</option>
-  </select>
-
-  <button onclick="sellItem()">Sell Item</button>
+  <h4>Add Produced Item</h4>
+  <input id="prodName" placeholder="Item name">
+  <input id="prodQty" type="number" placeholder="Quantity">
+  <button onclick="addProduced()">Add Production</button>
 </div>
 
-<!-- MANAGER VIEW -->
-<div id="managerPanel" class="hidden">
+<!-- MANAGER PANEL -->
+<div id="managerPanel" class="card hidden">
 
 <h3>Manager Dashboard</h3>
+
+<h4>Manage Items & Prices</h4>
+<input id="itemName" placeholder="Item name">
+<input id="itemPrice" type="number" placeholder="Price">
+<button onclick="addOrUpdateItem()">Save Item</button>
+
+<table id="itemTable"></table>
 
 <h4>Employee Management</h4>
 <input id="empName" placeholder="Employee Name">
 <input id="empPin" placeholder="4-digit PIN">
 <button onclick="addEmployee()">Add Employee</button>
 
+<h4>Add Manager</h4>
+<input id="mgrPin" placeholder="4-digit Manager PIN">
+<button onclick="addManager()">Add Manager</button>
+
 <table id="employeeTable"></table>
 
-<h4>Change Manager PIN</h4>
-<input id="newManagerPin" placeholder="New 4-digit PIN">
-<button onclick="changeManagerPin()">Update PIN</button>
-
-<h4>Employee Activity Log</h4>
+<h4>Activity Logs</h4>
 <button onclick="viewLogs()">View Logs</button>
 <div id="logOutput"></div>
-
-<h4>Reset Locked Accounts</h4>
-<button onclick="resetLocks()">Unlock All</button>
 
 </div>
 </div>
 
 <script>
-let managerPin = localStorage.getItem("managerPin") || "0000";
+let managers = JSON.parse(localStorage.getItem("managers")) || ["0000"];
 let employees = JSON.parse(localStorage.getItem("employees")) || {};
-let failedAttempts = JSON.parse(localStorage.getItem("failedAttempts")) || {};
+let items = JSON.parse(localStorage.getItem("items")) || {};
 let activityLog = JSON.parse(localStorage.getItem("activityLog")) || [];
+let failedAttempts = JSON.parse(localStorage.getItem("failedAttempts")) || {};
 
 let currentUser = "";
+let isManager = false;
 
 function save() {
+  localStorage.setItem("managers", JSON.stringify(managers));
   localStorage.setItem("employees", JSON.stringify(employees));
-  localStorage.setItem("managerPin", managerPin);
-  localStorage.setItem("failedAttempts", JSON.stringify(failedAttempts));
+  localStorage.setItem("items", JSON.stringify(items));
   localStorage.setItem("activityLog", JSON.stringify(activityLog));
+  localStorage.setItem("failedAttempts", JSON.stringify(failedAttempts));
 }
 
 function login() {
   const pin = pinInput.value;
 
   if (failedAttempts[pin] >= 3)
-    return alert("Account locked. Contact manager.");
+    return alert("Account locked");
 
-  if (pin === managerPin) {
+  if (managers.includes(pin)) {
     currentUser = "Manager";
-    openApp(true);
+    isManager = true;
+    openApp();
     return;
   }
 
@@ -97,24 +148,23 @@ function login() {
     return alert("Invalid PIN");
   }
 
-  failedAttempts[pin] = 0;
   currentUser = employees[pin];
-  save();
-  openApp(false);
+  isManager = false;
+  openApp();
 }
 
-function openApp(isManager) {
+function openApp() {
+  pinInput.value = "";
   loginScreen.classList.add("hidden");
   app.classList.remove("hidden");
   welcome.innerText = "Welcome " + currentUser;
-  pinInput.value = "";
 
   employeePanel.classList.toggle("hidden", isManager);
   managerPanel.classList.toggle("hidden", !isManager);
 
+  renderItems();
+  renderEmployees();
   logAction("Logged in");
-
-  if (isManager) renderEmployees();
 }
 
 function logout() {
@@ -122,84 +172,68 @@ function logout() {
   location.reload();
 }
 
-function addEmployee() {
-  if (empPin.value.length !== 4)
-    return alert("PIN must be 4 digits");
+function renderItems() {
+  itemSelect.innerHTML = "";
+  itemTable.innerHTML = "<tr><th>Item</th><th>Price</th></tr>";
 
-  if (employees[empPin.value])
-    return alert("PIN already exists");
-
-  employees[empPin.value] = empName.value;
-  save();
-  renderEmployees();
-  empName.value = empPin.value = "";
-}
-
-function deleteEmployee(pin) {
-  if (!confirm("Delete employee?")) return;
-  delete employees[pin];
-  save();
-  renderEmployees();
-}
-
-function editEmployee(pin, name) {
-  employees[pin] = name;
-  save();
-}
-
-function renderEmployees() {
-  employeeTable.innerHTML =
-    "<tr><th>Name</th><th>PIN</th><th>Action</th></tr>";
-
-  for (let pin in employees) {
-    employeeTable.innerHTML += `
+  for (let name in items) {
+    itemSelect.innerHTML += `<option>${name}</option>`;
+    itemTable.innerHTML += `
       <tr>
-        <td><input value="${employees[pin]}"
-            onchange="editEmployee('${pin}', this.value)"></td>
-        <td>${pin}</td>
-        <td><button onclick="deleteEmployee('${pin}')">Delete</button></td>
+        <td>${name}</td>
+        <td>
+          ${isManager
+            ? `<input value="${items[name]}" onchange="updatePrice('${name}', this.value)">`
+            : "$" + items[name]}
+        </td>
       </tr>`;
   }
 }
 
+function addOrUpdateItem() {
+  items[itemName.value] = Number(itemPrice.value);
+  save();
+  renderItems();
+  logAction("Updated item " + itemName.value);
+  itemName.value = itemPrice.value = "";
+}
+
+function updatePrice(name, price) {
+  items[name] = Number(price);
+  save();
+}
+
 function sellItem() {
-  const item = itemSelect.value;
-  logAction("Sold " + item);
-  alert(item + " sold");
+  logAction("Sold " + itemSelect.value);
+  alert("Sold " + itemSelect.value);
 }
 
-function logAction(action) {
-  activityLog.push({
-    user: currentUser,
-    action,
-    time: new Date().toLocaleString()
-  });
+function addProduced() {
+  if (!items[prodName.value]) items[prodName.value] = 0;
   save();
+  renderItems();
+  logAction("Produced " + prodQty.value + " " + prodName.value);
+  prodName.value = prodQty.value = "";
 }
 
-function viewLogs() {
-  logOutput.innerHTML = activityLog
-    .slice(-50)
-    .map(l => `<p>[${l.time}] ${l.user}: ${l.action}</p>`)
-    .join("");
-}
-
-function changeManagerPin() {
-  if (newManagerPin.value.length !== 4)
-    return alert("PIN must be 4 digits");
-
-  managerPin = newManagerPin.value;
+function addEmployee() {
+  employees[empPin.value] = empName.value;
   save();
-  alert("Manager PIN updated");
-  newManagerPin.value = "";
+  renderEmployees();
+  logAction("Added employee " + empName.value);
 }
 
-function resetLocks() {
-  failedAttempts = {};
+function addManager() {
+  if (!managers.includes(mgrPin.value))
+    managers.push(mgrPin.value);
   save();
-  alert("All accounts unlocked");
+  alert("Manager added");
+  mgrPin.value = "";
 }
-</script>
 
-</body>
-</html>
+function renderEmployees() {
+  employeeTable.innerHTML =
+    "<tr><th>Name</th><th>PIN</th><th>Role</th></tr>";
+
+  for (let pin in employees)
+    employeeTable.innerHTML += `<tr><td>${e
