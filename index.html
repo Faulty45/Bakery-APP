@@ -23,6 +23,11 @@ input,select{padding:6px;border-radius:8px;border:1px solid #ccc}
 
 <h2>🍞 Bakery POS</h2>
 
+<div class="card">
+<b>First Login</b><br>
+Manager PIN: <b>0000</b>
+</div>
+
 <div id="login" class="card">
 <input id="pin" type="password" placeholder="Enter PIN"><br><br>
 <button onclick="loginUser('sales')">Sales</button>
@@ -31,7 +36,6 @@ input,select{padding:6px;border-radius:8px;border:1px solid #ccc}
 </div>
 
 <div id="app" class="hidden">
-
 <h3 id="welcome"></h3>
 <button onclick="location.reload()">Logout</button>
 
@@ -113,30 +117,41 @@ $<span id="taxDisplay">0.00</span>
 const TAX_RATE=0.07;
 let discount=0,payType="",tax=0,cart={};
 
-let managers=JSON.parse(localStorage.getItem("managers"))||[{name:"Owner",pin:"0000"}];
+// 🔐 LOCKOUT-SAFE MANAGER INIT
+let managers=JSON.parse(localStorage.getItem("managers"));
+if(!Array.isArray(managers)||managers.length===0){
+  managers=[{name:"Owner",pin:"0000"}];
+  localStorage.setItem("managers",JSON.stringify(managers));
+}
+
 let employees=JSON.parse(localStorage.getItem("employees"))||{};
 let items=JSON.parse(localStorage.getItem("items"))||{};
 let taxLedger=JSON.parse(localStorage.getItem("taxLedger"))||[];
 
-function save(){localStorage.setItem("managers",JSON.stringify(managers));
+function save(){
+localStorage.setItem("managers",JSON.stringify(managers));
 localStorage.setItem("employees",JSON.stringify(employees));
 localStorage.setItem("items",JSON.stringify(items));
-localStorage.setItem("taxLedger",JSON.stringify(taxLedger));}
+localStorage.setItem("taxLedger",JSON.stringify(taxLedger));
+}
 
 function loginUser(role){
 const p=pin.value;
 if(role==="manager"){
-const m=managers.find(x=>x.pin===p);if(!m)return alert("Invalid");
+const m=managers.find(x=>x.pin===p);
+if(!m)return alert("Invalid manager PIN");
 welcome.innerText="Welcome "+m.name;show(role);return;}
-if(!employees[p])return alert("Invalid");
-welcome.innerText="Welcome "+employees[p];show(role);}
+if(!employees[p])return alert("Invalid employee PIN");
+welcome.innerText="Welcome "+employees[p];show(role);
+}
 
 function show(role){
 login.classList.add("hidden");app.classList.remove("hidden");
 sales.classList.toggle("hidden",role!=="sales");
 production.classList.toggle("hidden",role!=="production");
 manager.classList.toggle("hidden",role!=="manager");
-renderSales();renderProduction();}
+renderSales();renderProduction();
+}
 
 function renderSales(){
 itemsUI.innerHTML="";cart={};discount=0;
@@ -148,19 +163,22 @@ ${i} $${items[i].price} (${items[i].stock})
 <button class="qtyBtn" onclick="qty('${i}',-1)">-</button>
 <span id="q-${i}">0</span>
 </div>`;}
-updateTotal();}
+updateTotal();
+}
 
 function qty(i,d){
 cart[i]=(cart[i]||0)+d;
 if(cart[i]<0)cart[i]=0;
 if(cart[i]>items[i].stock)cart[i]=items[i].stock;
 document.getElementById("q-"+i).innerText=cart[i];
-updateTotal();}
+updateTotal();
+}
 
 function applyDiscount(){
 let sub=0;for(let i in cart)sub+=cart[i]*items[i].price;
 discount=discType.value==="percent"?sub*(discVal.value/100):Number(discVal.value||0);
-updateTotal();}
+updateTotal();
+}
 
 function roundNoPennies(a){return Math.round(a*20)/20;}
 
@@ -172,7 +190,8 @@ let sub=taxable+non-discount;if(sub<0)sub=0;
 tax=taxable*TAX_RATE;
 taxDisplay.innerText=tax.toFixed(2);
 let t=roundNoPennies(sub+tax+Number(tip.value||0));
-total.innerText=t.toFixed(2);}
+total.innerText=t.toFixed(2);
+}
 
 function completeSale(){
 let t=Number(total.innerText);
@@ -182,7 +201,8 @@ return alert("Split must equal total");
 
 for(let i in cart){items[i].stock-=cart[i];}
 taxLedger.push({date:new Date(),tax});
-save();printReceipt();renderSales();}
+save();printReceipt();renderSales();
+}
 
 function printReceipt(){
 receipt.innerHTML="<h3>Bakery</h3>";
@@ -190,20 +210,24 @@ for(let i in cart)if(cart[i]>0)
 receipt.innerHTML+=`${cart[i]} x ${i}<br>`;
 receipt.innerHTML+=`<hr>Tax: $${tax.toFixed(2)}<br>
 Total: $${total.innerText}<br>Thank you!`;
-receipt.classList.remove("hidden");window.print();receipt.classList.add("hidden");}
+receipt.classList.remove("hidden");window.print();receipt.classList.add("hidden");
+}
 
 function renderProduction(){
 prodItem.innerHTML="";
-for(let i in items)prodItem.innerHTML+=`<option>${i}</option>`;}
+for(let i in items)prodItem.innerHTML+=`<option>${i}</option>`;
+}
 
 function addProduction(){
 items[prodItem.value].stock+=Number(prodQty.value);
-save();renderSales();}
+save();renderSales();
+}
 
 function saveItem(){
 items[itemName.value]={price:Number(itemPrice.value),
 stock:Number(itemStock.value||0),taxable:itemTax.checked};
-save();renderSales();}
+save();renderSales();
+}
 
 function addEmployee(){employees[empPin.value]=empName.value;save();}
 function addManager(){managers.push({name:mgrName.value,pin:mgrPin.value});save();}
@@ -211,7 +235,9 @@ function addManager(){managers.push({name:mgrName.value,pin:mgrPin.value});save(
 function taxReport(){
 let today=new Date().toDateString(),sum=0;
 taxLedger.forEach(t=>{if(new Date(t.date).toDateString()===today)sum+=t.tax});
-report.innerHTML=`<b>Tax Today:</b> $${sum.toFixed(2)}`;window.print();}
+report.innerHTML=`<b>Tax Today:</b> $${sum.toFixed(2)}`;
+window.print();
+}
 </script>
 
 </body>
